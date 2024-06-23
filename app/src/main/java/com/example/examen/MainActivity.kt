@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.examen.components.RoomScreen
 import com.example.examen.ui.theme.ExamenTheme
 
 class MainActivity : ComponentActivity() {
@@ -21,11 +22,13 @@ class MainActivity : ComponentActivity() {
             ExamenTheme {
                 Scaffold( modifier = Modifier.fillMaxSize() ) { innerPadding ->
                     Greeting(
-                        name = "Android",
+                        name = "- AULA 202",
                         modifier = Modifier.padding(innerPadding)
                     )
+                    RoomScreen()
                 }
             }
+
         }
     }
 }
@@ -33,7 +36,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     Text(
-        text = "Hello $name!",
+        text = "UNSA $name!",
         modifier = modifier
     )
 }
