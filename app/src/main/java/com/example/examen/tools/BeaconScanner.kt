@@ -3,8 +3,11 @@ package com.example.examen.tools
 import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.le.*
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.ParcelUuid
@@ -13,45 +16,32 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
-class BeaconScanner(private val activity: Activity) {
+interface BeaconScanListener {
+    fun onBeaconDetected(uuid: String, distance: Double)
+}
 
-    private val bluetoothAdapter: BluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
-    private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter.bluetoothLeScanner
+class BeaconScanner(private val activity: Activity, private val listener: BeaconScanListener) {
+
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
     private val handler = Handler()
 
-    // Stops scanning after 10 seconds.
-    private val SCAN_PERIOD: Long = 10000
+    private val uuids = listOf(
+        "3ab11a6e-867d-48d5-828d-67f16cced0ca",
+        "00000000-0000-1000-8000-00805f9b34fb",  // Ejemplo de segundo UUID
+        "a617ec53-9247-48b2-9d74-97353a897e52"
+    )
 
-    private val leScanCallback: ScanCallback = object : ScanCallback() {
+    private val scanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             super.onScanResult(callbackType, result)
-            val device: BluetoothDevice = result.device
-            val scanRecord = result.scanRecord
-            val uuid = scanRecord?.serviceUuids?.get(0)?.uuid
-            val rssi = result.rssi
-            val txPower = -59 // Typical TX Power value for BLE beacons in dBm. Adjust as needed.
-
-            val distance = calculateDistance(rssi, txPower)
-
-            activity.runOnUiThread {
-                Toast.makeText(activity, "Beacon detected with UUID: $uuid, Distance: $distance meters", Toast.LENGTH_SHORT).show()
-            }
+            processScanResult(result)
         }
 
         override fun onBatchScanResults(results: List<ScanResult>) {
             super.onBatchScanResults(results)
             for (result in results) {
-                val device: BluetoothDevice = result.device
-                val scanRecord = result.scanRecord
-                val uuid = scanRecord?.serviceUuids?.get(0)?.uuid
-                val rssi = result.rssi
-                val txPower = -59 // Typical TX Power value for BLE beacons in dBm. Adjust as needed.
-
-                val distance = calculateDistance(rssi, txPower)
-
-                activity.runOnUiThread {
-                    Toast.makeText(activity, "Beacon detected with UUID: $uuid, Distance: $distance meters", Toast.LENGTH_SHORT).show()
-                }
+                processScanResult(result)
             }
         }
 
@@ -71,33 +61,39 @@ class BeaconScanner(private val activity: Activity) {
         }
 
         try {
-            // Stop scanning after a pre-defined scan period
-            handler.postDelayed({
-                bluetoothLeScanner?.stopScan(leScanCallback)
-            }, SCAN_PERIOD)
-
-            val scanFilter = ScanFilter.Builder()
-                .setServiceUuid(ParcelUuid.fromString("YOUR-BEACON-UUID-HERE")) // Replace with your beacon UUID
-                .build()
-            val scanFilters = listOf(scanFilter)
+            val scanFilters = uuids.map {
+                ScanFilter.Builder()
+                    .setServiceUuid(ParcelUuid.fromString(it))
+                    .build()
+            }
 
             val scanSettings = ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build()
 
-            bluetoothLeScanner?.startScan(scanFilters, scanSettings, leScanCallback)
+            bluetoothLeScanner?.startScan(scanFilters, scanSettings, scanCallback)
         } catch (e: SecurityException) {
-            Toast.makeText(activity, "Permission denied for Bluetooth scanning", Toast.LENGTH_SHORT).show()
             Log.e("BeaconScanner", "SecurityException: ${e.message}")
         }
     }
 
     fun stopScanning() {
         try {
-            bluetoothLeScanner?.stopScan(leScanCallback)
+            bluetoothLeScanner?.stopScan(scanCallback)
         } catch (e: SecurityException) {
-            Toast.makeText(activity, "Permission denied for stopping Bluetooth scanning", Toast.LENGTH_SHORT).show()
             Log.e("BeaconScanner", "SecurityException: ${e.message}")
+        }
+    }
+
+    private fun processScanResult(result: ScanResult) {
+        val scanRecord = result.scanRecord ?: return
+        val uuid = scanRecord.serviceUuids?.get(0)?.uuid?.toString() ?: return
+        val rssi = result.rssi
+        val txPower = -59 // Typical TX Power value for BLE beacons in dBm. Adjust as needed.
+        val distance = calculateDistance(rssi, txPower)
+
+        activity.runOnUiThread {
+            listener.onBeaconDetected(uuid, distance)
         }
     }
 
