@@ -7,9 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,15 +18,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
-import kotlin.random.Random
-
+import com.example.examen.MainViewModel
 
 @Composable
-fun RoomScreen() {
+fun RoomScreen(viewModel: MainViewModel) {
     // Para obtener la densidad del dispositivo
     val density = LocalDensity.current
     // Estado para almacenar la posición del círculo
-    var circlePosition by remember { mutableStateOf(Offset(50f, 50f)) }
+    val circlePosition by viewModel.result.collectAsState()
 
     // Estado para almacenar el tamaño del rectángulo negro
     var rectSize by remember { mutableStateOf(Size.Zero) }
@@ -194,19 +191,19 @@ fun RoomScreen() {
 
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
+//        Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                val circleRadiusPx = with(density) { 25.dp.toPx() }
-                val randomX = Random.nextFloat() * (rectSize.width - 2 * circleRadiusPx) + circleRadiusPx
-                val randomY = Random.nextFloat() * (rectSize.height - 2 * circleRadiusPx) + circleRadiusPx
-                circlePosition = Offset(randomX, randomY)
-            },
-            modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-            Text("Actualizar ubicacion actual")
-        }
+//        Button(
+//            onClick = {
+//                val circleRadiusPx = with(density) { 25.dp.toPx() }
+//                val randomX = Random.nextFloat() * (rectSize.width - 2 * circleRadiusPx) + circleRadiusPx
+//                val randomY = Random.nextFloat() * (rectSize.height - 2 * circleRadiusPx) + circleRadiusPx
+//                circlePosition = Offset(randomX, randomY)
+//            },
+//            modifier = Modifier.align(Alignment.BottomCenter)
+//            ) {
+//            Text("Actualizar ubicacion actual")
+//        }
 
     }
 

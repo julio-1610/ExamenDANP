@@ -9,7 +9,6 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.pm.PackageManager
-import android.os.Handler
 import android.os.ParcelUuid
 import android.util.Log
 import android.widget.Toast
@@ -24,12 +23,11 @@ class BeaconScanner(private val activity: Activity, private val listener: Beacon
 
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
-    private val handler = Handler()
 
     private val uuids = listOf(
         "3ab11a6e-867d-48d5-828d-67f16cced0ca",
         "00000000-0000-1000-8000-00805f9b34fb",  // Ejemplo de segundo UUID
-        "a617ec53-9247-48b2-9d74-97353a897e52"
+        "00000000-0000-1000-8000-00805f9b34fa"
     )
 
     private val scanCallback: ScanCallback = object : ScanCallback() {
