@@ -30,9 +30,9 @@ class MainActivity : ComponentActivity(), BeaconScanListener {
     private val viewModel: MainViewModel by viewModels()
 
     private val beaconList = LinkedHashMap<String, Beacon>()
-    val uuid1 = "3ab11a6e-867d-48d5-828d-67f16cced0ca"
-    val uuid2 = "00000000-0000-1000-8000-00805f9b34fb"
-    val uuid3 = "00000000-0000-1000-8000-00805f9b34fa"
+    val uuid1 = "00001815-0000-1000-8000-00805f9b34fa"
+    val uuid2 = "00001815-0000-1000-8000-00805f9b34fb"
+    val uuid3 = "00001815-0000-1000-8000-00805f9b34fc"
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -41,9 +41,9 @@ class MainActivity : ComponentActivity(), BeaconScanListener {
         beaconList[uuid1] =
             Beacon(uuid1, "1", "1", 0.0, Cardinal(0.0, 0.0))
         beaconList[uuid2] =
-            Beacon(uuid2, "1", "2", 0.0, Cardinal(25.0, 0.0))
+            Beacon(uuid2, "1", "2", 0.0, Cardinal(3.149119079456388, 0.0))
         beaconList[uuid3] =
-            Beacon(uuid3, "1", "2", 0.0, Cardinal(0.0, 30.0))
+            Beacon(uuid3, "1", "2", 0.0, Cardinal(0.0, 7.859024240732739))
 
         beaconScanner.startScanning()
 

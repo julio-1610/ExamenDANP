@@ -25,10 +25,26 @@ class BeaconScanner(private val activity: Activity, private val listener: Beacon
     private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
 
     private val uuids = listOf(
-        "3ab11a6e-867d-48d5-828d-67f16cced0ca",
-        "00000000-0000-1000-8000-00805f9b34fb",  // Ejemplo de segundo UUID
-        "00000000-0000-1000-8000-00805f9b34fa"
+        "00001815-0000-1000-8000-00805f9b34fa",
+        "00001815-0000-1000-8000-00805f9b34fb",
+        "00001815-0000-1000-8000-00805f9b34fc"
     )
+
+    // Mapa para almacenar instancias de KalmanFilter por UUID
+    private val kalmanFilters = mutableMapOf<String, KalmanFilter>()
+
+    // Mapa para almacenar TX Power por UUID
+    private val txPowerMap = mapOf(
+        "00001815-0000-1000-8000-00805f9b34fa" to -59,  // Ajustar según el beacon
+        "00001815-0000-1000-8000-00805f9b34fb" to -59,
+        "00001815-0000-1000-8000-00805f9b34fc" to -59
+    )
+
+    // Mapa para almacenar buffers de RSSI por UUID (para filtro de media móvil)
+    private val rssiBuffers = mutableMapOf<String, MutableList<Int>>()
+
+    // Tamaño del buffer para el filtro de media móvil
+    private val bufferSize = 10
 
     private val scanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -52,7 +68,7 @@ class BeaconScanner(private val activity: Activity, private val listener: Beacon
     }
 
     fun startScanning() {
-        // Check permissions
+
         if (ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
             return
@@ -87,54 +103,83 @@ class BeaconScanner(private val activity: Activity, private val listener: Beacon
         val scanRecord = result.scanRecord ?: return
         val uuid = scanRecord.serviceUuids?.get(0)?.uuid?.toString() ?: return
         val rssi = result.rssi
-        val txPower = -59 // Typical TX Power value for BLE beacons in dBm. Adjust as needed.
-        val distance = calculateDistance(rssi, txPower)
+
+        // Aplicar filtro de media móvil
+        val filteredRssi = applyMovingAverageFilter(uuid, rssi)
+
+        // Obtener TX Power para este UUID
+        val txPower = txPowerMap[uuid] ?: return
+
+        // Obtener filtro de Kalman para este UUID (crear si no existe)
+        val kalmanFilter = kalmanFilters.getOrPut(uuid) { KalmanFilter(Q = 0.01, R = 0.1, C = 1.0) }
+
+        // Calcular distancia con RSSI filtrado
+        val distance = calculateDistance(filteredRssi, txPower)
+
+        // Aplicar filtro de Kalman a la distancia calculada
+        val filteredDistance = kalmanFilter.filter(distance)
 
         activity.runOnUiThread {
-            listener.onBeaconDetected(uuid, distance)
+            listener.onBeaconDetected(uuid, filteredDistance)
         }
     }
 
-    // Method to calculate distance based on RSSI and TxPower
+    // Método para calcular la distancia basada en RSSI y TxPower
     private fun calculateDistance(rssi: Int, txPower: Int): Double {
-        val kalmanFilter = KalmanFilter(Q = 0.1, R = 0.1)
-
         if (rssi == 0) {
-            return -1.0 // if we cannot determine distance, return -1.
+            return -1.0 // Valor de RSSI inválido
         }
 
         val ratio = rssi * 1.0 / txPower
-        val distance = if (ratio < 1.0) {
+        return if (ratio < 1.0) {
             Math.pow(ratio, 10.0)
         } else {
             0.89976 * Math.pow(ratio, 7.7095) + 0.111
         }
-
-        return kalmanFilter.filter(distance)
     }
 
+    // Aplicar filtro de media móvil a RSSI por UUID
+    private fun applyMovingAverageFilter(uuid: String, rssi: Int): Int {
+        val rssiBuffer = rssiBuffers.getOrPut(uuid) { mutableListOf() }
+        rssiBuffer.add(rssi)
+        if (rssiBuffer.size > bufferSize) {
+            rssiBuffer.removeAt(0)
+        }
+        val average = rssiBuffer.average()
+        return average.toInt()
+    }
+
+    // Clase KalmanFilter (puedes usar tu implementación modificada)
     private class KalmanFilter(
-        private var Q: Double, // Process noise covariance
-        private var R: Double, // Measurement noise covariance
-        private var A: Double = 1.0, // State transition coefficient
-        private var B: Double = 0.0, // Control input coefficient
-        private var H: Double = 1.0 // Measurement coefficient
+        private var Q: Double,
+        private var R: Double,
+        private var A: Double = 1.0,
+        private var B: Double = 0.0,
+        private var C: Double = 1.0
     ) {
-        private var x: Double = 0.0 // Initial estimate
-        private var P: Double = 1.0 // Initial estimate covariance
+        private var x: Double? = null
+        private var cov: Double = 0.0
 
-        fun filter(z: Double, u: Double = 0.0): Double {
-            // Prediction
-            val x_pred = A * x + B * u
-            val P_pred = A * P * A + Q
+        private fun square(x: Double) = x * x
+        private fun predict(x: Double): Double = (A * x)
+        private fun uncertainty(): Double = (square(A) * cov) + R
 
-            // Update
-            val K = P_pred * H / (H * P_pred * H + R) // Kalman gain
-            x = x_pred + K * (z - H * x_pred)
-            P = (1 - K * H) * P_pred
+        fun filter(signal: Double): Double {
+            val x = this.x
 
-            return x
+            if (x == null) {
+                this.x = (1 / C) * signal
+                cov = square(1 / C) * Q
+            } else {
+                val prediction = predict(x)
+                val uncertainty = uncertainty()
+
+                val k_gain = uncertainty * C * (1 / ((square(C) * uncertainty) + Q))
+
+                this.x = prediction + k_gain * (signal - (C * prediction))
+                cov = uncertainty - (k_gain * C * uncertainty)
+            }
+            return this.x!!
         }
     }
-
 }
