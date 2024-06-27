@@ -39,11 +39,11 @@ class MainActivity : ComponentActivity(), BeaconScanListener {
         // Initialize BeaconScanner
         beaconScanner = BeaconScanner(this, this)
         beaconList[uuid1] =
-            Beacon(uuid1, "1", "1", 0.0, Cardinal(8.0, 5.0))
+            Beacon(uuid1, "1", "1", 0.0, Cardinal(0.0, 0.0))
         beaconList[uuid2] =
-            Beacon(uuid2, "1", "2", 0.0, Cardinal(8.0, 13.0))
+            Beacon(uuid2, "1", "2", 0.0, Cardinal(25.0, 0.0))
         beaconList[uuid3] =
-            Beacon(uuid3, "1", "2", 0.0, Cardinal(15.0, 8.0))
+            Beacon(uuid3, "1", "2", 0.0, Cardinal(0.0, 30.0))
 
         beaconScanner.startScanning()
 
@@ -87,12 +87,12 @@ class MainActivity : ComponentActivity(), BeaconScanListener {
             "Beacons detected with UUID 1: ${beaconList.get(uuid1)?.minor}, Distance: ${
                 beaconList.get(uuid1)?.distance
             } meters" +
-                    "Beacons detected with UUID 1: ${beaconList.get(uuid2)?.minor}, Distance: ${
+                    "Beacons detected with UUID 2: ${beaconList.get(uuid2)?.minor}, Distance: ${
                         beaconList.get(
                             uuid2
                         )?.distance
                     } meters" +
-                    "Beacons detected with UUID 1: ${beaconList.get(uuid3)?.minor}, Distance: ${
+                    "Beacons detected with UUID 3: ${beaconList.get(uuid3)?.minor}, Distance: ${
                         beaconList.get(
                             uuid3
                         )?.distance
@@ -108,12 +108,16 @@ class MainActivity : ComponentActivity(), BeaconScanListener {
             beaconList.get(uuid3)!!.distance
         )
 
-        viewModel.updateResult(Offset(result.x.toFloat(), result.y.toFloat()))
-
+        viewModel.updateResult(Offset((result.x * 40.0).toFloat(), (result.y*100.0).toFloat()))
         Log.d("MainActivity", "Resultado trilateracion $result ")
 
     }
 
+}
+
+fun scaleValue(value: Double, oldMin: Double = 0.0, oldMax: Double = 20.0, newMin: Double = 0.0, newMax: Double = 2100.0): Double {
+    val normalizedValue = (value - oldMin) / (oldMax - oldMin)
+    return normalizedValue * (newMax - newMin) + newMin
 }
 
 

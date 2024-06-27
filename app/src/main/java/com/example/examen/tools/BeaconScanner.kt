@@ -97,15 +97,44 @@ class BeaconScanner(private val activity: Activity, private val listener: Beacon
 
     // Method to calculate distance based on RSSI and TxPower
     private fun calculateDistance(rssi: Int, txPower: Int): Double {
+        val kalmanFilter = KalmanFilter(Q = 0.1, R = 0.1)
+
         if (rssi == 0) {
             return -1.0 // if we cannot determine distance, return -1.
         }
 
         val ratio = rssi * 1.0 / txPower
-        return if (ratio < 1.0) {
+        val distance = if (ratio < 1.0) {
             Math.pow(ratio, 10.0)
         } else {
             0.89976 * Math.pow(ratio, 7.7095) + 0.111
         }
+
+        return kalmanFilter.filter(distance)
     }
+
+    private class KalmanFilter(
+        private var Q: Double, // Process noise covariance
+        private var R: Double, // Measurement noise covariance
+        private var A: Double = 1.0, // State transition coefficient
+        private var B: Double = 0.0, // Control input coefficient
+        private var H: Double = 1.0 // Measurement coefficient
+    ) {
+        private var x: Double = 0.0 // Initial estimate
+        private var P: Double = 1.0 // Initial estimate covariance
+
+        fun filter(z: Double, u: Double = 0.0): Double {
+            // Prediction
+            val x_pred = A * x + B * u
+            val P_pred = A * P * A + Q
+
+            // Update
+            val K = P_pred * H / (H * P_pred * H + R) // Kalman gain
+            x = x_pred + K * (z - H * x_pred)
+            P = (1 - K * H) * P_pred
+
+            return x
+        }
+    }
+
 }
